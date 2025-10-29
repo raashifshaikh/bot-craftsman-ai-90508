@@ -1,6 +1,3 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from 'jsr:@supabase/supabase-js@2';
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -21,21 +18,30 @@ Deno.serve(async (req) => {
 
     console.log('Generating bot configuration for project:', projectId);
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
     // Create generation history entry
-    const { data: historyEntry } = await supabaseAdmin
-      .from('generation_history')
-      .insert({
-        project_id: projectId,
-        user_prompt: JSON.stringify(requirements),
-        status: 'processing',
-      })
-      .select()
-      .single();
+    const historyResponse = await fetch(
+      `${supabaseUrl}/rest/v1/generation_history`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          project_id: projectId,
+          user_prompt: JSON.stringify(requirements),
+          status: 'processing',
+        })
+      }
+    );
+
+    if (!historyResponse.ok) throw new Error('Failed to create history');
+    const [historyEntry] = await historyResponse.json();
 
     // Extract commands from requirements
     const commands: any[] = [];
@@ -94,16 +100,41 @@ Deno.serve(async (req) => {
     }
 
     // Insert commands
-    await supabaseAdmin.from('bot_commands').insert(commandsWithResponses);
+    const insertResponse = await fetch(
+      `${supabaseUrl}/rest/v1/bot_commands`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(commandsWithResponses)
+      }
+    );
+
+    if (!insertResponse.ok) throw new Error('Failed to insert commands');
 
     // Update history
-    await supabaseAdmin
-      .from('generation_history')
-      .update({
-        status: 'completed',
-        ai_response: { commands: commandsWithResponses },
-      })
-      .eq('id', historyEntry.id);
+    const updateResponse = await fetch(
+      `${supabaseUrl}/rest/v1/generation_history?id=eq.${historyEntry.id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          status: 'completed',
+          ai_response: { commands: commandsWithResponses },
+        })
+      }
+    );
+
+    if (!updateResponse.ok) throw new Error('Failed to update history');
 
     return new Response(JSON.stringify({ 
       success: true,
@@ -114,7 +145,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in generate-bot:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

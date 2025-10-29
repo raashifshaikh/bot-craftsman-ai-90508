@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,8 +36,7 @@ serve(async (req) => {
     const botUsername = botInfo.result.username;
 
     // Set webhook URL
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const webhookUrl = `${supabaseUrl}/functions/v1/telegram-bot-runtime?token=${botToken}`;
+    const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/telegram-bot-runtime?token=${botToken}`;
 
     const webhookResponse = await fetch(
       `https://api.telegram.org/bot${botToken}/setWebhook`,
@@ -65,23 +63,31 @@ serve(async (req) => {
     console.log('Webhook set successfully:', webhookResult);
 
     // Update project in database
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    
+    const updateResponse = await fetch(
+      `${supabaseUrl}/rest/v1/bot_projects?id=eq.${projectId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          webhook_url: webhookUrl,
+          bot_username: botUsername,
+          bot_status: 'active',
+          is_active: true,
+        })
+      }
     );
 
-    const { error: updateError } = await supabase
-      .from('bot_projects')
-      .update({
-        webhook_url: webhookUrl,
-        bot_username: botUsername,
-        bot_status: 'active',
-        is_active: true,
-      })
-      .eq('id', projectId);
-
-    if (updateError) {
-      console.error('Failed to update project:', updateError);
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text();
+      console.error('Failed to update project:', errorText);
       return new Response(
         JSON.stringify({ error: 'Failed to update project' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

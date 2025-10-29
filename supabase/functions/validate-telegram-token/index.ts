@@ -1,5 +1,3 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -42,7 +40,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         valid: false,
-        error: error.message 
+        error: error instanceof Error ? error.message : 'Unknown error'
       }),
       {
         status: 400,

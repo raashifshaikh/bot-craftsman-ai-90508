@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,32 +33,32 @@ serve(async (req) => {
       });
     }
 
-    // Initialize Supabase client
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
     // Find bot project by token (take most recent active one if duplicates exist)
-    const { data: projects, error: projectError } = await supabase
-      .from('bot_projects')
-      .select('id, user_id, bot_status, is_active')
-      .eq('telegram_bot_token', botToken)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(1);
+    const projectsResponse = await fetch(
+      `${supabaseUrl}/rest/v1/bot_projects?telegram_bot_token=eq.${botToken}&is_active=eq.true&select=id,user_id,bot_status,is_active&order=created_at.desc&limit=1`,
+      {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        }
+      }
+    );
 
-    const project = projects?.[0];
-
-    if (projectError || !project) {
-      console.error('Project not found:', projectError);
+    if (!projectsResponse.ok) {
+      console.error('Project not found');
       return new Response(JSON.stringify({ error: 'Bot not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (!project.is_active || project.bot_status !== 'active') {
+    const projects = await projectsResponse.json();
+    const project = projects[0];
+
+    if (!project || !project.is_active || project.bot_status !== 'active') {
       console.log('Bot is not active');
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -82,52 +81,72 @@ serve(async (req) => {
       const command = messageText.split(' ')[0];
       
       // Get command configuration
-      const { data: commandConfig } = await supabase
-        .from('bot_commands')
-        .select('*')
-        .eq('project_id', project.id)
-        .eq('command', command)
-        .eq('is_active', true)
-        .single();
-
-      if (commandConfig) {
-        botResponse = commandConfig.response_content;
-
-        // Prepare reply markup if buttons are configured
-        let replyMarkup = undefined;
-        if (commandConfig.response_type === 'buttons' && commandConfig.response_metadata?.buttons) {
-          replyMarkup = {
-            inline_keyboard: commandConfig.response_metadata.buttons
-          };
-        }
-
-        // Send response via Telegram API
-        const telegramResponse = await fetch(
-          `https://api.telegram.org/bot${botToken}/sendMessage`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: botResponse,
-              reply_markup: replyMarkup,
-              parse_mode: 'HTML',
-            }),
+      const commandResponse = await fetch(
+        `${supabaseUrl}/rest/v1/bot_commands?project_id=eq.${project.id}&command=eq.${command}&is_active=eq.true&limit=1`,
+        {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
           }
-        );
-
-        if (!telegramResponse.ok) {
-          const errorText = await telegramResponse.text();
-          console.error('Telegram API error:', errorText);
         }
+      );
 
-        // Increment command usage
-        await supabase.rpc('increment_bot_metric', {
-          p_project_id: project.id,
-          p_metric_name: `command_${command}`,
-          p_increment: 1
-        });
-      } else {
+      if (commandResponse.ok) {
+        const commands = await commandResponse.json();
+        const commandConfig = commands[0];
+
+        if (commandConfig) {
+          botResponse = commandConfig.response_content;
+
+          // Prepare reply markup if buttons are configured
+          let replyMarkup = undefined;
+          if (commandConfig.response_type === 'buttons' && commandConfig.response_metadata?.buttons) {
+            replyMarkup = {
+              inline_keyboard: commandConfig.response_metadata.buttons
+            };
+          }
+
+          // Send response via Telegram API
+          const telegramResponse = await fetch(
+            `https://api.telegram.org/bot${botToken}/sendMessage`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: chatId,
+                text: botResponse,
+                reply_markup: replyMarkup,
+                parse_mode: 'HTML',
+              }),
+            }
+          );
+
+          if (!telegramResponse.ok) {
+            const errorText = await telegramResponse.text();
+            console.error('Telegram API error:', errorText);
+          }
+
+          // Increment command usage
+          await fetch(
+            `${supabaseUrl}/rest/v1/rpc/increment_bot_metric`,
+            {
+              method: 'POST',
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                p_project_id: project.id,
+                p_metric_name: `command_${command}`,
+                p_increment: 1
+              })
+            }
+          );
+        }
+      }
+
+      if (!botResponse) {
         // Unknown command
         botResponse = 'Unknown command. Type /help to see available commands.';
         await fetch(
@@ -161,39 +180,79 @@ serve(async (req) => {
     const responseTime = Date.now() - startTime;
 
     // Log message interaction
-    await supabase.from('bot_messages').insert({
-      project_id: project.id,
-      telegram_user_id: userId,
-      telegram_username: username,
-      telegram_first_name: firstName,
-      telegram_last_name: lastName,
-      message_text: messageText,
-      message_type: isCommand ? 'command' : 'text',
-      bot_response: botResponse,
-      response_time_ms: responseTime,
-    });
+    await fetch(
+      `${supabaseUrl}/rest/v1/bot_messages`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          project_id: project.id,
+          telegram_user_id: userId,
+          telegram_username: username,
+          telegram_first_name: firstName,
+          telegram_last_name: lastName,
+          message_text: messageText,
+          message_type: isCommand ? 'command' : 'text',
+          bot_response: botResponse,
+          response_time_ms: responseTime,
+        })
+      }
+    );
 
     // Update daily metrics
-    await supabase.rpc('increment_bot_metric', {
-      p_project_id: project.id,
-      p_metric_name: 'total_messages',
-      p_increment: 1
-    });
+    await fetch(
+      `${supabaseUrl}/rest/v1/rpc/increment_bot_metric`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          p_project_id: project.id,
+          p_metric_name: 'total_messages',
+          p_increment: 1
+        })
+      }
+    );
 
     // Track unique users
-    const { data: existingUser } = await supabase
-      .from('bot_messages')
-      .select('telegram_user_id')
-      .eq('project_id', project.id)
-      .eq('telegram_user_id', userId)
-      .limit(1);
+    const existingUserResponse = await fetch(
+      `${supabaseUrl}/rest/v1/bot_messages?project_id=eq.${project.id}&telegram_user_id=eq.${userId}&select=telegram_user_id&limit=1`,
+      {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        }
+      }
+    );
 
-    if (!existingUser || existingUser.length === 0) {
-      await supabase.rpc('increment_bot_metric', {
-        p_project_id: project.id,
-        p_metric_name: 'total_users',
-        p_increment: 1
-      });
+    if (existingUserResponse.ok) {
+      const existingUser = await existingUserResponse.json();
+      if (!existingUser || existingUser.length === 0) {
+        await fetch(
+          `${supabaseUrl}/rest/v1/rpc/increment_bot_metric`,
+          {
+            method: 'POST',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              p_project_id: project.id,
+              p_metric_name: 'total_users',
+              p_increment: 1
+            })
+          }
+        );
+      }
     }
 
     return new Response(JSON.stringify({ ok: true }), {
