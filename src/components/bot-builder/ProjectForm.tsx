@@ -66,13 +66,19 @@ export default function ProjectForm({ onSuccess }: ProjectFormProps) {
         },
       });
 
-      setGeneratedCode(codeData);
+      // Setup webhook and activate bot
+      const { data: webhookData, error: webhookError } = await supabase.functions.invoke('setup-webhook', {
+        body: { projectId: project.id, botToken: formData.get('telegram_token') as string }
+      });
+
+      if (webhookError) throw webhookError;
 
       toast({
         title: "Success!",
-        description: "Bot code generated successfully.",
+        description: `Bot @${webhookData.botUsername} is now live!`,
       });
 
+      window.location.href = `/bot/${project.id}`;
       onSuccess?.();
     } catch (error: any) {
       console.error('Error:', error);

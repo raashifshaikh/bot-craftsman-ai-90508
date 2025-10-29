@@ -12,15 +12,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { projectId, requirements, botToken, supabaseUrl, supabaseKey } = await req.json();
+    const { projectId, requirements, botToken } = await req.json();
     const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
 
     if (!OPENROUTER_API_KEY) {
       throw new Error('OPENROUTER_API_KEY is not configured');
     }
 
-    console.log('Generating bot code for project:', projectId);
-    console.log('Requirements:', requirements);
+    console.log('Generating bot configuration for project:', projectId);
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -33,102 +32,83 @@ Deno.serve(async (req) => {
       .insert({
         project_id: projectId,
         user_prompt: JSON.stringify(requirements),
-        status: 'pending',
+        status: 'processing',
       })
       .select()
       .single();
 
-    const systemPrompt = `You are an expert Python Telegram bot developer. 
-Generate complete, production-ready Python code for a Telegram bot using python-telegram-bot library.
-
-Requirements:
-${JSON.stringify(requirements, null, 2)}
-
-Bot Token: ${botToken}
-${supabaseUrl ? `Supabase URL: ${supabaseUrl}` : ''}
-${supabaseKey ? `Supabase Key: ${supabaseKey}` : ''}
-
-Generate these files:
-1. main.py - Main bot file with all handlers
-2. requirements.txt - All dependencies
-3. README.md - Setup and deployment instructions
-${requirements.needsDatabase ? '4. database.py - Database helper functions' : ''}
-
-Make the code:
-- Production-ready with error handling
-- Well-commented and structured
-- Following Python best practices
-- Using async/await properly
-- Including proper logging
-
-Return ONLY valid JSON in this exact format:
-{
-  "files": [
-    {
-      "name": "main.py",
-      "content": "# Full code here...",
-      "type": "python"
-    },
-    {
-      "name": "requirements.txt",
-      "content": "python-telegram-bot==20.7\\n...",
-      "type": "text"
-    }
-  ]
-}`;
-
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://botforge.ai',
-        'X-Title': 'BotForge AI',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-exp:free',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: 'Generate the complete bot code now.' }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.7,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('OpenRouter error:', error);
-      throw new Error(`OpenRouter API error: ${response.status}`);
+    // Extract commands from requirements
+    const commands: any[] = [];
+    
+    for (const req of requirements) {
+      if (req.commands && Array.isArray(req.commands)) {
+        commands.push(...req.commands.map((cmd: string) => ({
+          command: cmd.startsWith('/') ? cmd : `/${cmd}`,
+          description: req.description || 'No description',
+        })));
+      }
     }
 
-    const data = await response.json();
-    const generatedData = JSON.parse(data.choices[0].message.content);
-
-    console.log('Generated files:', generatedData.files.length);
-
-    // Store generated code
-    for (const file of generatedData.files) {
-      await supabaseAdmin
-        .from('generated_code')
-        .insert({
-          project_id: projectId,
-          file_name: file.name,
-          file_content: file.content,
-          file_type: file.type,
-        });
+    // Add default commands
+    if (!commands.some(c => c.command === '/start')) {
+      commands.push({ command: '/start', description: 'Welcome message' });
+    }
+    if (!commands.some(c => c.command === '/help')) {
+      commands.push({ command: '/help', description: 'Show commands' });
     }
 
-    // Update history status
+    // Generate responses for each command
+    const commandsWithResponses = [];
+    
+    for (const cmd of commands) {
+      const systemPrompt = `Generate a friendly Telegram bot response for "${cmd.command}". Context: ${requirements[0]?.description || 'A helpful bot'}. Return only the response text, under 200 characters.`;
+
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.0-flash-exp:free',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Generate response for ${cmd.command}` }
+          ],
+        }),
+      });
+
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+      const data = await response.json();
+      const generatedResponse = data.choices[0].message.content.trim();
+
+      commandsWithResponses.push({
+        project_id: projectId,
+        command: cmd.command,
+        description: cmd.description,
+        response_type: 'text',
+        response_content: generatedResponse,
+        order_index: commandsWithResponses.length,
+      });
+    }
+
+    // Insert commands
+    await supabaseAdmin.from('bot_commands').insert(commandsWithResponses);
+
+    // Update history
     await supabaseAdmin
       .from('generation_history')
       .update({
         status: 'completed',
-        ai_response: generatedData,
+        ai_response: { commands: commandsWithResponses },
       })
       .eq('id', historyEntry.id);
 
-    return new Response(JSON.stringify(generatedData), {
+    return new Response(JSON.stringify({ 
+      success: true,
+      commands: commandsWithResponses
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

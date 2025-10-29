@@ -14,39 +14,186 @@ export type Database = {
   }
   public: {
     Tables: {
+      bot_analytics: {
+        Row: {
+          created_at: string | null
+          id: string
+          metric_date: string | null
+          metric_name: string
+          metric_value: number | null
+          project_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          metric_date?: string | null
+          metric_name: string
+          metric_value?: number | null
+          project_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          metric_date?: string | null
+          metric_name?: string
+          metric_value?: number | null
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_analytics_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "bot_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_commands: {
+        Row: {
+          command: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          order_index: number | null
+          project_id: string
+          response_content: string
+          response_metadata: Json | null
+          response_type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          command: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          order_index?: number | null
+          project_id: string
+          response_content: string
+          response_metadata?: Json | null
+          response_type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          command?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          order_index?: number | null
+          project_id?: string
+          response_content?: string
+          response_metadata?: Json | null
+          response_type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_commands_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "bot_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_messages: {
+        Row: {
+          bot_response: string | null
+          created_at: string | null
+          id: string
+          message_text: string | null
+          message_type: string | null
+          project_id: string
+          response_time_ms: number | null
+          telegram_first_name: string | null
+          telegram_last_name: string | null
+          telegram_user_id: string
+          telegram_username: string | null
+        }
+        Insert: {
+          bot_response?: string | null
+          created_at?: string | null
+          id?: string
+          message_text?: string | null
+          message_type?: string | null
+          project_id: string
+          response_time_ms?: number | null
+          telegram_first_name?: string | null
+          telegram_last_name?: string | null
+          telegram_user_id: string
+          telegram_username?: string | null
+        }
+        Update: {
+          bot_response?: string | null
+          created_at?: string | null
+          id?: string
+          message_text?: string | null
+          message_type?: string | null
+          project_id?: string
+          response_time_ms?: number | null
+          telegram_first_name?: string | null
+          telegram_last_name?: string | null
+          telegram_user_id?: string
+          telegram_username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_messages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "bot_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_projects: {
         Row: {
+          bot_status: string | null
+          bot_username: string | null
           created_at: string
           description: string
           id: string
+          is_active: boolean | null
           name: string
           supabase_anon_key: string | null
           supabase_url: string | null
           telegram_bot_token: string | null
           updated_at: string
           user_id: string | null
+          webhook_url: string | null
         }
         Insert: {
+          bot_status?: string | null
+          bot_username?: string | null
           created_at?: string
           description: string
           id?: string
+          is_active?: boolean | null
           name: string
           supabase_anon_key?: string | null
           supabase_url?: string | null
           telegram_bot_token?: string | null
           updated_at?: string
           user_id?: string | null
+          webhook_url?: string | null
         }
         Update: {
+          bot_status?: string | null
+          bot_username?: string | null
           created_at?: string
           description?: string
           id?: string
+          is_active?: boolean | null
           name?: string
           supabase_anon_key?: string | null
           supabase_url?: string | null
           telegram_bot_token?: string | null
           updated_at?: string
           user_id?: string | null
+          webhook_url?: string | null
         }
         Relationships: []
       }
@@ -179,6 +326,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_bot_metric: {
+        Args: {
+          p_increment?: number
+          p_metric_name: string
+          p_project_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
