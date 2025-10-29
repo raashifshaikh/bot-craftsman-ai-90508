@@ -40,12 +40,16 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Find bot project by token
-    const { data: project, error: projectError } = await supabase
+    // Find bot project by token (take most recent active one if duplicates exist)
+    const { data: projects, error: projectError } = await supabase
       .from('bot_projects')
       .select('id, user_id, bot_status, is_active')
       .eq('telegram_bot_token', botToken)
-      .single();
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const project = projects?.[0];
 
     if (projectError || !project) {
       console.error('Project not found:', projectError);

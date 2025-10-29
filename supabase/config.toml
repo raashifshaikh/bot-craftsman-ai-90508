@@ -1,1 +1,22 @@
 project_id = "fjekjutzxzvkfzybwhac"
+
+[functions.analyze-prompt]
+verify_jwt = true
+
+[functions.generate-bot]
+verify_jwt = true
+
+[functions.validate-telegram-token]
+verify_jwt = true
+
+[functions.telegram-bot-runtime]
+verify_jwt = false
+
+[functions.setup-webhook]
+verify_jwt = true
+
+[functions.suggest-commands]
+verify_jwt = true
+
+[functions.generate-response]
+verify_jwt = true
