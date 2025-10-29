@@ -4,10 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Settings, Command, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Settings, Command, BarChart3, Bot } from 'lucide-react';
 import CommandManager from '@/components/bot-management/CommandManager';
 import BotAnalytics from '@/components/bot-management/BotAnalytics';
 import BotSettings from '@/components/bot-management/BotSettings';
+import { BotAssistantChat } from '@/components/bot-management/BotAssistantChat';
 import { toast } from '@/hooks/use-toast';
 
 export default function BotManagement() {
@@ -119,10 +120,14 @@ export default function BotManagement() {
 
         {/* Tabs */}
         <Tabs defaultValue="commands" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="commands">
               <Command className="w-4 h-4 mr-2" />
               Commands
+            </TabsTrigger>
+            <TabsTrigger value="assistant">
+              <Bot className="w-4 h-4 mr-2" />
+              AI Assistant
             </TabsTrigger>
             <TabsTrigger value="analytics">
               <BarChart3 className="w-4 h-4 mr-2" />
@@ -139,6 +144,10 @@ export default function BotManagement() {
               projectId={project.id}
               botDescription={project.description}
             />
+          </TabsContent>
+
+          <TabsContent value="assistant">
+            <BotAssistantChat projectId={project.id} />
           </TabsContent>
 
           <TabsContent value="analytics">

@@ -1,71 +1,110 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+async function callAI(messages: any[], useJsonMode = false) {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+
+  if (LOVABLE_API_KEY) {
+    try {
+      const body: any = {
+        model: 'google/gemini-2.5-flash',
+        messages
+      };
+      
+      if (useJsonMode) {
+        body.response_format = { type: "json_object" };
+      }
+
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        return await response.json();
+      }
+      
+      console.warn('Lovable AI failed, falling back to Gemini:', response.status);
+    } catch (error) {
+      console.warn('Lovable AI error, falling back to Gemini:', error);
+    }
+  }
+
+  if (!GEMINI_API_KEY) {
+    throw new Error('No AI API key configured');
+  }
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: messages.map(msg => ({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.content }]
+      })),
+      generationConfig: useJsonMode ? { responseMimeType: "application/json" } : {}
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Gemini API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return {
+    choices: [{
+      message: {
+        content: data.candidates[0].content.parts[0].text
+      }
+    }]
+  };
+}
+
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { botDescription, existingCommands } = await req.json();
+    
+    console.log('Generating command suggestions');
+    console.log('Bot description:', botDescription);
+    console.log('Existing commands:', existingCommands);
 
-    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
-    if (!OPENROUTER_API_KEY) {
-      throw new Error('OPENROUTER_API_KEY not configured');
-    }
-
-    const systemPrompt = `You are a Telegram bot expert. Given a bot description and existing commands, suggest 3-5 additional useful commands that would enhance the bot's functionality.
-
-Return ONLY a JSON array of command suggestions with this structure:
+    const systemPrompt = `You are a Telegram bot expert. Suggest 3-5 useful commands for this bot.
+Return a JSON array with this format:
 [
   {
-    "command": "/commandname",
-    "description": "Brief description of what this command does",
-    "response": "Sample response text that the bot should send",
-    "priority": "high|medium|low"
+    "command": "commandname",
+    "description": "What this command does",
+    "response": "Example response text"
   }
 ]
 
-Existing commands: ${existingCommands?.map((c: any) => c.command).join(', ') || 'None yet'}
+Make commands relevant, useful, and avoid duplicating: ${existingCommands.join(', ')}`;
 
-Make suggestions relevant to the bot's purpose. Be creative but practical.`;
+    const data = await callAI([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Bot: ${botDescription}` }
+    ], true);
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-exp:free',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Bot description: ${botDescription}` }
-        ],
-      }),
-    });
+    const suggestions = JSON.parse(data.choices[0].message.content);
+    console.log('Generated suggestions:', suggestions);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenRouter error:', errorText);
-      throw new Error(`OpenRouter API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0].message.content;
-    
-    // Extract JSON from response
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    const suggestions = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
-
-    return new Response(JSON.stringify({ suggestions }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
+    return new Response(
+      JSON.stringify({ suggestions }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     console.error('Error in suggest-commands:', error);
     return new Response(

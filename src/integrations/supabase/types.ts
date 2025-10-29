@@ -99,6 +99,76 @@ export type Database = {
           },
         ]
       }
+      bot_conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          project_id: string | null
+          role: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          project_id?: string | null
+          role: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          project_id?: string | null
+          role?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_conversations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "bot_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_health_reports: {
+        Row: {
+          created_at: string | null
+          health_score: number | null
+          id: string
+          issues: Json | null
+          project_id: string | null
+          suggestions: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          health_score?: number | null
+          id?: string
+          issues?: Json | null
+          project_id?: string | null
+          suggestions?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          health_score?: number | null
+          id?: string
+          issues?: Json | null
+          project_id?: string | null
+          suggestions?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_health_reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "bot_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_messages: {
         Row: {
           bot_response: string | null

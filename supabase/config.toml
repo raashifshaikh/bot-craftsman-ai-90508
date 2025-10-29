@@ -20,3 +20,6 @@ verify_jwt = true
 
 [functions.generate-response]
 verify_jwt = true
+
+[functions.bot-assistant]
+verify_jwt = true
