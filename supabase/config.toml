@@ -23,3 +23,18 @@ verify_jwt = true
 
 [functions.bot-assistant]
 verify_jwt = true
+
+[functions.ai-bot-builder]
+verify_jwt = true
+
+[functions.intelligent-response]
+verify_jwt = false
+
+[functions.payment-processor]
+verify_jwt = false
+
+[functions.subscription-manager]
+verify_jwt = true
+
+[functions.api-executor]
+verify_jwt = false
