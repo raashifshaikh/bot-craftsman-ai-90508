@@ -152,13 +152,29 @@ class BotRuntime {
   }
 
   private async findCommand(text: string) {
-    const { data } = await this.supabase
+    // Extract command text and normalize it
+    let commandText = text.trim().split(" ")[0].toLowerCase();
+    
+    // Ensure it starts with /
+    if (!commandText.startsWith('/')) {
+      commandText = '/' + commandText;
+    }
+    
+    console.log(`[Command Search] Looking for: ${commandText}`);
+    
+    const { data, error } = await this.supabase
       .from("bot_commands")
       .select("*")
       .eq("project_id", this.projectId)
-      .eq("command", text.split(" ")[0])
-      .maybeSingle();
-    return data;
+      .eq("is_active", true)
+      .ilike("command", commandText);
+    
+    if (error) {
+      console.error("[Command Search] Error:", error);
+    }
+    
+    console.log(`[Command Search] Found:`, data);
+    return data?.[0] || null;
   }
 
   private async findFlow(text: string) {
@@ -208,15 +224,33 @@ class BotRuntime {
 
   private async handleCommand(command: any, message: any) {
     const chatId = message.chat.id;
-    let responseText = command.response_text || command.response_content || "Command executed";
-
-    // Generate AI response if needed
-    if (command.use_ai_response) {
-      responseText = await this.callGenerateResponse(command.command, command.description);
+    const telegramUserId = message.from.id;
+    
+    console.log(`[Command Handler] Executing: ${command.command}`);
+    
+    // Use response_content field consistently
+    let responseText = command.response_content?.trim();
+    
+    // If empty or response_type is 'ai', generate AI response
+    if (!responseText || command.response_type === 'ai') {
+      console.log(`[Command Handler] Generating AI response`);
+      responseText = await this.callGenerateResponse(
+        command.command, 
+        command.description
+      );
     }
-
-    const buttons = command.response_metadata?.buttons || command.response_buttons;
+    
+    // Handle buttons if present
+    const buttons = command.response_metadata?.buttons;
+    
+    console.log(`[Command Handler] Sending response: ${responseText.substring(0, 50)}...`);
     await this.sendMessage(chatId, responseText, buttons);
+    
+    // Log successful execution
+    await this.logEvent("command_executed", telegramUserId, {
+      command: command.command,
+      response_length: responseText.length
+    });
   }
 
   private async startFlow(flow: any, message: any) {

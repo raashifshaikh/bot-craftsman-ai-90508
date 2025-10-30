@@ -72,6 +72,11 @@ export default function CommandManager({ projectId, botDescription }: CommandMan
     setCommands([...commands, newCommand]);
   };
 
+  const normalizeCommand = (cmd: string) => {
+    const trimmed = cmd.trim();
+    return trimmed.startsWith('/') ? trimmed : '/' + trimmed;
+  };
+
   const updateCommand = (index: number, field: keyof Command, value: any) => {
     const updated = [...commands];
     updated[index] = { ...updated[index], [field]: value };
@@ -106,12 +111,36 @@ export default function CommandManager({ projectId, botDescription }: CommandMan
   };
 
   const saveCommands = async () => {
+    // Validate commands before saving
+    const invalidCommands = commands.filter(c => 
+      !c.command.trim() || 
+      !c.description.trim() || 
+      !c.response_content.trim()
+    );
+    
+    if (invalidCommands.length > 0) {
+      toast({
+        title: 'Validation Error',
+        description: `${invalidCommands.length} command(s) have empty fields. Please fill all required fields.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // Normalize all commands to have / prefix
+      const normalizedCommands = commands.map(c => ({
+        ...c,
+        command: normalizeCommand(c.command)
+      }));
+      
+      setCommands(normalizedCommands);
+
       // Separate new and existing commands
-      const newCommands = commands.filter(c => !c.id);
-      const existingCommands = commands.filter(c => c.id);
+      const newCommands = normalizedCommands.filter(c => !c.id);
+      const existingCommands = normalizedCommands.filter(c => c.id);
 
       // Insert new commands
       if (newCommands.length > 0) {
@@ -283,6 +312,7 @@ export default function CommandManager({ projectId, botDescription }: CommandMan
                   <Input
                     value={cmd.command}
                     onChange={(e) => updateCommand(index, 'command', e.target.value)}
+                    onBlur={(e) => updateCommand(index, 'command', normalizeCommand(e.target.value))}
                     placeholder="/command"
                     className="w-40"
                   />
