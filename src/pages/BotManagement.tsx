@@ -8,6 +8,7 @@ import { ArrowLeft, Settings, Command, BarChart3, Bot } from 'lucide-react';
 import CommandManager from '@/components/bot-management/CommandManager';
 import BotAnalytics from '@/components/bot-management/BotAnalytics';
 import BotSettings from '@/components/bot-management/BotSettings';
+import BotEventViewer from '@/components/bot-management/BotEventViewer';
 import { BotAssistantChat } from '@/components/bot-management/BotAssistantChat';
 import { toast } from '@/hooks/use-toast';
 
@@ -151,7 +152,10 @@ export default function BotManagement() {
           </TabsContent>
 
           <TabsContent value="analytics">
-            <BotAnalytics projectId={project.id} />
+            <div className="space-y-6">
+              <BotAnalytics projectId={project.id} />
+              <BotEventViewer projectId={project.id} />
+            </div>
           </TabsContent>
 
           <TabsContent value="settings">

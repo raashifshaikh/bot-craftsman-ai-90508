@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_integrations: {
+        Row: {
+          api_type: string
+          auth_config: Json | null
+          auth_type: string | null
+          base_url: string
+          created_at: string | null
+          headers: Json | null
+          id: string
+          is_active: boolean | null
+          name: string
+          project_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          api_type: string
+          auth_config?: Json | null
+          auth_type?: string | null
+          base_url: string
+          created_at?: string | null
+          headers?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          project_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          api_type?: string
+          auth_config?: Json | null
+          auth_type?: string | null
+          base_url?: string
+          created_at?: string | null
+          headers?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          project_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_integrations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "bot_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_analytics: {
         Row: {
           created_at: string | null
@@ -134,6 +184,41 @@ export type Database = {
           },
         ]
       }
+      bot_events: {
+        Row: {
+          created_at: string | null
+          event_data: Json | null
+          event_type: string
+          id: string
+          project_id: string
+          telegram_user_id: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          project_id: string
+          telegram_user_id?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          project_id?: string
+          telegram_user_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "bot_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_health_reports: {
         Row: {
           created_at: string | null
@@ -162,6 +247,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "bot_health_reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "bot_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_intents: {
+        Row: {
+          action_config: Json | null
+          action_type: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          project_id: string
+          training_phrases: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          action_config?: Json | null
+          action_type: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          project_id: string
+          training_phrases?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          action_config?: Json | null
+          action_type?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          project_id?: string
+          training_phrases?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_intents_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "bot_projects"
@@ -267,6 +399,103 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_flows: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          flow_definition: Json
+          id: string
+          is_active: boolean | null
+          name: string
+          priority: number | null
+          project_id: string
+          trigger_type: string
+          trigger_value: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          flow_definition?: Json
+          id?: string
+          is_active?: boolean | null
+          name: string
+          priority?: number | null
+          project_id: string
+          trigger_type: string
+          trigger_value: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          flow_definition?: Json
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          priority?: number | null
+          project_id?: string
+          trigger_type?: string
+          trigger_value?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_flows_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "bot_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_states: {
+        Row: {
+          context: Json | null
+          current_flow_id: string | null
+          current_step: string | null
+          expires_at: string | null
+          id: string
+          project_id: string
+          started_at: string | null
+          state_data: Json | null
+          telegram_user_id: number
+          updated_at: string | null
+        }
+        Insert: {
+          context?: Json | null
+          current_flow_id?: string | null
+          current_step?: string | null
+          expires_at?: string | null
+          id?: string
+          project_id: string
+          started_at?: string | null
+          state_data?: Json | null
+          telegram_user_id: number
+          updated_at?: string | null
+        }
+        Update: {
+          context?: Json | null
+          current_flow_id?: string | null
+          current_step?: string | null
+          expires_at?: string | null
+          id?: string
+          project_id?: string
+          started_at?: string | null
+          state_data?: Json | null
+          telegram_user_id?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_states_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "bot_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generated_code: {
         Row: {
           created_at: string
@@ -364,6 +593,92 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_plans: {
+        Row: {
+          billing_period: string
+          created_at: string | null
+          description: string | null
+          features: Json | null
+          id: string
+          is_active: boolean | null
+          name: string
+          price_amount: number
+          price_currency: string
+          project_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          billing_period: string
+          created_at?: string | null
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          price_amount: number
+          price_currency?: string
+          project_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          billing_period?: string
+          created_at?: string | null
+          description?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          price_amount?: number
+          price_currency?: string
+          project_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_plans_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "bot_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telegram_users: {
+        Row: {
+          created_at: string | null
+          first_name: string | null
+          id: string
+          is_bot: boolean | null
+          language_code: string | null
+          last_name: string | null
+          last_seen_at: string | null
+          telegram_id: number
+          username: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          is_bot?: boolean | null
+          language_code?: string | null
+          last_name?: string | null
+          last_seen_at?: string | null
+          telegram_id: number
+          username?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          is_bot?: boolean | null
+          language_code?: string | null
+          last_name?: string | null
+          last_seen_at?: string | null
+          telegram_id?: number
+          username?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -384,6 +699,60 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          payment_data: Json | null
+          plan_id: string
+          project_id: string
+          started_at: string | null
+          status: string
+          telegram_user_id: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          payment_data?: Json | null
+          plan_id: string
+          project_id: string
+          started_at?: string | null
+          status: string
+          telegram_user_id: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          payment_data?: Json | null
+          plan_id?: string
+          project_id?: string
+          started_at?: string | null
+          status?: string
+          telegram_user_id?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_subscriptions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "bot_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
