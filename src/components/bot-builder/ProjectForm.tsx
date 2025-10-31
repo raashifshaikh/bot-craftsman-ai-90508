@@ -4,12 +4,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import CodePreview from '@/components/code-viewer/CodePreview';
+import { EnhancedPromptBuilder } from './EnhancedPromptBuilder';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ProjectFormProps {
   onSuccess?: () => void;
@@ -21,26 +22,31 @@ export default function ProjectForm({ onSuccess }: ProjectFormProps) {
   const [useSupabase, setUseSupabase] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<any>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [promptValue, setPromptValue] = useState('');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!user) return;
 
     setIsLoading(true);
     const formData = new FormData(e.currentTarget);
 
     try {
-      // Create project
+      // Create project (works with or without auth)
+      const projectData: any = {
+        name: formData.get('name') as string,
+        description: formData.get('description') as string,
+        telegram_bot_token: formData.get('telegram_token') as string,
+        supabase_url: useSupabase ? (formData.get('supabase_url') as string) : null,
+        supabase_anon_key: useSupabase ? (formData.get('supabase_anon_key') as string) : null,
+      };
+
+      if (user) {
+        projectData.user_id = user.id;
+      }
+
       const { data: project, error: projectError } = await supabase
         .from('bot_projects')
-        .insert({
-          user_id: user.id,
-          name: formData.get('name') as string,
-          description: formData.get('description') as string,
-          telegram_bot_token: formData.get('telegram_token') as string,
-          supabase_url: useSupabase ? (formData.get('supabase_url') as string) : null,
-          supabase_anon_key: useSupabase ? (formData.get('supabase_anon_key') as string) : null,
-        })
+        .insert(projectData)
         .select()
         .single();
 
@@ -50,7 +56,7 @@ export default function ProjectForm({ onSuccess }: ProjectFormProps) {
       // Analyze prompt
       const { data: analysis } = await supabase.functions.invoke('analyze-prompt', {
         body: { 
-          prompt: formData.get('prompt') as string,
+          prompt: promptValue,
           useSupabase 
         },
       });
@@ -101,10 +107,20 @@ export default function ProjectForm({ onSuccess }: ProjectFormProps) {
       <CardHeader>
         <CardTitle>Create New Telegram Bot</CardTitle>
         <CardDescription>
-          Describe your bot in natural language and we'll generate the code
+          Describe your bot in natural language and AI will generate the code
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {!user && (
+          <Alert className="mb-6 border-destructive/50 bg-destructive/10">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-sm">
+              <strong>Guest Mode:</strong> You can create bots without signing in, but they'll only be saved in your browser. 
+              Sign up to save bots permanently and access them from any device.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">Project Name</Label>
@@ -117,11 +133,11 @@ export default function ProjectForm({ onSuccess }: ProjectFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">Short Description</Label>
             <Input
               id="description"
               name="description"
-              placeholder="A brief description of your bot"
+              placeholder="A brief one-line description"
               required
             />
           </div>
@@ -133,22 +149,17 @@ export default function ProjectForm({ onSuccess }: ProjectFormProps) {
               name="telegram_token"
               placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
               required
+              type="password"
             />
             <p className="text-xs text-muted-foreground">
-              Get your bot token from @BotFather on Telegram
+              Get your bot token from <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">@BotFather</a> on Telegram
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="prompt">Bot Requirements (Natural Language)</Label>
-            <Textarea
-              id="prompt"
-              name="prompt"
-              placeholder="Create a welcome bot that greets users when they join and stores their information in a database. It should have /start, /help, and /stats commands."
-              className="min-h-[150px]"
-              required
-            />
-          </div>
+          <EnhancedPromptBuilder 
+            value={promptValue}
+            onChange={setPromptValue}
+          />
 
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div className="space-y-0.5">

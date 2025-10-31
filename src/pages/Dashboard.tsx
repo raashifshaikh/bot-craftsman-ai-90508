@@ -1,19 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bot, LogOut, Plus, History, FolderOpen, User, Settings, Bell, Search } from 'lucide-react';
+import { Bot, LogOut, Plus, History, FolderOpen, User, Settings, Bell, Search, LogIn } from 'lucide-react';
 import ProjectForm from '@/components/bot-builder/ProjectForm';
 import ProjectsList from '@/components/dashboard/ProjectsList';
 import GenerationHistory from '@/components/dashboard/GenerationHistory';
+import { TermsDialog } from '@/components/TermsDialog';
+import { GuestWarningDialog } from '@/components/GuestWarningDialog';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 export default function Dashboard() {
   const { user, loading, signOut } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('projects');
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useLocalStorage('termsAccepted', false);
+  const [showTermsDialog, setShowTermsDialog] = useState(false);
+  const [showGuestWarning, setShowGuestWarning] = useState(false);
+  const [guestWarningShown, setGuestWarningShown] = useLocalStorage('guestWarningShown', false);
+
+  useEffect(() => {
+    if (!loading) {
+      if (!termsAccepted) {
+        setShowTermsDialog(true);
+      } else if (!user && !guestWarningShown) {
+        setShowGuestWarning(true);
+      }
+    }
+  }, [loading, termsAccepted, user, guestWarningShown]);
+
+  const handleTermsAccept = () => {
+    setTermsAccepted(true);
+    setShowTermsDialog(false);
+    if (!user && !guestWarningShown) {
+      setShowGuestWarning(true);
+    }
+  };
+
+  const handleGuestContinue = () => {
+    setGuestWarningShown(true);
+    setShowGuestWarning(false);
+  };
 
   if (loading) {
     return (
@@ -26,9 +57,7 @@ export default function Dashboard() {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
+  // Auth is now optional - users can work as guests
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -64,44 +93,53 @@ export default function Dashboard() {
 
             {/* User Menu */}
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="h-4 w-4" />
-                <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-              </Button>
-              
-              <div className="relative">
-                <Button
-                  variant="ghost"
-                  className="flex items-center gap-2"
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                >
-                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                    <User className="h-4 w-4 text-white" />
-                  </div>
-                  <span className="hidden sm:block text-sm font-medium">{user.email}</span>
-                </Button>
-                
-                {showUserMenu && (
-                  <div className="absolute right-0 top-12 w-48 bg-white rounded-lg shadow-lg border py-2 z-50">
-                    <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Profile
-                    </button>
-                    <button className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2">
-                      <Settings className="h-4 w-4" />
-                      Settings
-                    </button>
-                    <div className="border-t my-1"></div>
-                    <button 
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2 text-red-600"
-                      onClick={signOut}
+              {user ? (
+                <>
+                  <Button variant="ghost" size="sm" className="relative">
+                    <Bell className="h-4 w-4" />
+                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+                  </Button>
+                  
+                  <div className="relative">
+                    <Button
+                      variant="ghost"
+                      className="flex items-center gap-2"
+                      onClick={() => setShowUserMenu(!showUserMenu)}
                     >
-                      <LogOut className="h-4 w-4" />
-                      Sign Out
-                    </button>
+                      <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                        <User className="h-4 w-4 text-primary-foreground" />
+                      </div>
+                      <span className="hidden sm:block text-sm font-medium">{user.email}</span>
+                    </Button>
+                    
+                    {showUserMenu && (
+                      <div className="absolute right-0 top-12 w-48 bg-card rounded-lg shadow-lg border py-2 z-50">
+                        <button className="w-full px-4 py-2 text-left text-sm hover:bg-accent flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          Profile
+                        </button>
+                        <button className="w-full px-4 py-2 text-left text-sm hover:bg-accent flex items-center gap-2">
+                          <Settings className="h-4 w-4" />
+                          Settings
+                        </button>
+                        <div className="border-t my-1"></div>
+                        <button 
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-accent flex items-center gap-2 text-destructive"
+                          onClick={signOut}
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Sign Out
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              ) : (
+                <Button onClick={() => navigate('/auth')}>
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Sign In
+                </Button>
+              )}
             </div>
           </div>
 
@@ -124,11 +162,20 @@ export default function Dashboard() {
         {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">
-            Welcome back, {user.email?.split('@')[0]}! 👋
+            Welcome{user ? ` back, ${user.email?.split('@')[0]}` : ' to BotForge AI'}! 👋
           </h2>
           <p className="text-muted-foreground">
-            Ready to create your next AI-powered chatbot?
+            {user 
+              ? 'Ready to create your next AI-powered chatbot?' 
+              : 'Create powerful Telegram bots with AI - no coding required!'}
           </p>
+          {!user && (
+            <div className="mt-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <p className="text-sm text-destructive font-medium">
+                ⚠️ Guest Mode: Your data is saved locally. Create an account to save bots permanently.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Quick Stats */}
@@ -222,6 +269,18 @@ export default function Dashboard() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Dialogs */}
+      <TermsDialog 
+        open={showTermsDialog}
+        onOpenChange={setShowTermsDialog}
+        onAccept={handleTermsAccept}
+      />
+      <GuestWarningDialog
+        open={showGuestWarning}
+        onOpenChange={setShowGuestWarning}
+        onContinue={handleGuestContinue}
+      />
 
       {/* Footer */}
       <footer className="border-t bg-white/50 mt-12">

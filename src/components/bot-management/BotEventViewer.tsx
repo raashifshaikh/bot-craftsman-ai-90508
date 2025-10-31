@@ -109,29 +109,29 @@ export default function BotEventViewer({ projectId }: BotEventViewerProps) {
             <div className="space-y-3">
               {events.map((event) => (
                 <Card key={event.id} className="bg-secondary/30">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className={`p-2 rounded-lg ${getEventColor(event.event_type)}`}>
+                  <CardContent className="p-3 md:p-4">
+                    <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3">
+                      <div className="flex items-start gap-2 sm:gap-3 flex-1 w-full">
+                        <div className={`p-1.5 sm:p-2 rounded-lg ${getEventColor(event.event_type)}`}>
                           {getEventIcon(event.event_type)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="text-xs">
+                          <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-1">
+                            <Badge variant="outline" className="text-[10px] sm:text-xs">
                               {event.event_type}
                             </Badge>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-[10px] sm:text-xs text-muted-foreground">
                               User {event.telegram_user_id}
                             </span>
                           </div>
-                          <div className="text-sm break-words">
+                          <div className="text-xs sm:text-sm break-words">
                             {event.event_type === 'message' && (
                               <p className="text-foreground">{event.event_data.text}</p>
                             )}
                             {event.event_type === 'command_executed' && (
                               <div>
                                 <p className="text-foreground font-medium">{event.event_data.command}</p>
-                                <p className="text-xs text-muted-foreground mt-1">
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                                   Response: {event.event_data.response_length} chars
                                 </p>
                               </div>
@@ -142,7 +142,7 @@ export default function BotEventViewer({ projectId }: BotEventViewerProps) {
                           </div>
                         </div>
                       </div>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap self-end sm:self-auto">
                         {formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}
                       </span>
                     </div>

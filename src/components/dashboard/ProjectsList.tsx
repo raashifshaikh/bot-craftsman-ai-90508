@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Code, Trash2, Calendar } from 'lucide-react';
+import { Code, Trash2, Calendar, Settings, Edit } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import CodePreview from '@/components/code-viewer/CodePreview';
+import { BotEditDialog } from '@/components/bot-management/BotEditDialog';
 
 export default function ProjectsList() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [editingBot, setEditingBot] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
@@ -21,11 +25,16 @@ export default function ProjectsList() {
 
   const loadProjects = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('bot_projects')
         .select('*')
-        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
+      
+      if (user) {
+        query = query.eq('user_id', user.id);
+      }
+      
+      const { data, error } = await query;
 
       if (error) throw error;
       setProjects(data || []);
@@ -100,8 +109,9 @@ export default function ProjectsList() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {projects.map((project) => (
+    <>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {projects.map((project) => (
         <Card key={project.id}>
           <CardHeader>
             <CardTitle className="line-clamp-1">{project.name}</CardTitle>
@@ -114,14 +124,29 @@ export default function ProjectsList() {
               <Calendar className="h-3 w-3" />
               {new Date(project.created_at).toLocaleDateString()}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 size="sm"
+                variant="outline"
                 className="flex-1"
+                onClick={() => navigate(`/bot/${project.id}`)}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Manage
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setEditingBot(project)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => setSelectedProject(project.id)}
               >
-                <Code className="h-4 w-4 mr-2" />
-                View Code
+                <Code className="h-4 w-4" />
               </Button>
               <Button
                 size="sm"
@@ -132,8 +157,18 @@ export default function ProjectsList() {
               </Button>
             </div>
           </CardContent>
-        </Card>
-      ))}
-    </div>
+          </Card>
+        ))}
+      </div>
+
+      {editingBot && (
+        <BotEditDialog
+          open={!!editingBot}
+          onOpenChange={(open) => !open && setEditingBot(null)}
+          bot={editingBot}
+          onUpdate={loadProjects}
+        />
+      )}
+    </>
   );
 }

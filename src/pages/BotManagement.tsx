@@ -20,24 +20,24 @@ export default function BotManagement() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/auth');
-      return;
-    }
-
-    if (user && id) {
+    // Auth is optional now
+    if (!authLoading && id) {
       loadProject();
     }
-  }, [user, authLoading, id]);
+  }, [authLoading, id]);
 
   const loadProject = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('bot_projects')
         .select('*')
-        .eq('id', id)
-        .eq('user_id', user?.id)
-        .single();
+        .eq('id', id);
+      
+      if (user) {
+        query = query.eq('user_id', user.id);
+      }
+      
+      const { data, error } = await query.single();
 
       if (error) throw error;
 
@@ -119,24 +119,24 @@ export default function BotManagement() {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs - Mobile Optimized */}
         <Tabs defaultValue="commands" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="commands">
-              <Command className="w-4 h-4 mr-2" />
-              Commands
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+            <TabsTrigger value="commands" className="text-xs md:text-sm">
+              <Command className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Commands</span>
             </TabsTrigger>
-            <TabsTrigger value="assistant">
-              <Bot className="w-4 h-4 mr-2" />
-              AI Assistant
+            <TabsTrigger value="assistant" className="text-xs md:text-sm">
+              <Bot className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">AI Assistant</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Analytics
+            <TabsTrigger value="analytics" className="text-xs md:text-sm">
+              <BarChart3 className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Analytics</span>
             </TabsTrigger>
-            <TabsTrigger value="settings">
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
+            <TabsTrigger value="settings" className="text-xs md:text-sm">
+              <Settings className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Settings</span>
             </TabsTrigger>
           </TabsList>
 

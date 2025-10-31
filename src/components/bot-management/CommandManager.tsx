@@ -306,21 +306,22 @@ export default function CommandManager({ projectId, botDescription }: CommandMan
         {commands.map((cmd, index) => (
           <Card key={index}>
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <GripVertical className="w-4 h-4 text-muted-foreground cursor-move" />
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <GripVertical className="w-4 h-4 text-muted-foreground cursor-move hidden sm:block" />
                   <Input
                     value={cmd.command}
                     onChange={(e) => updateCommand(index, 'command', e.target.value)}
                     onBlur={(e) => updateCommand(index, 'command', normalizeCommand(e.target.value))}
                     placeholder="/command"
-                    className="w-40"
+                    className="w-full sm:w-40"
                   />
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => deleteCommand(index)}
+                  className="self-end sm:self-auto"
                 >
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </Button>
